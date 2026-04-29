@@ -1,1 +1,642 @@
-# sso.github.io
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Mugenzi · AI Assistant</title>
+  <script src="https://cdn.botframework.com/botframework-webchat/4.18.0/webchat.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Serif+Display&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --navy:       #0B2545;
+      --navy-mid:   #13375B;
+      --teal:       #00B4A0;
+      --teal-light: #00D4BC;
+      --cream:      #F7F5F0;
+      --white:      #FFFFFF;
+      --text:       #1A1F2E;
+      --muted:      #6B7480;
+      --border:     rgba(11,37,69,0.10);
+      --shadow-sm:  0 2px 8px rgba(11,37,69,0.08);
+      --shadow-md:  0 8px 32px rgba(11,37,69,0.12);
+      --shadow-lg:  0 24px 64px rgba(11,37,69,0.18);
+      --radius:     20px;
+      --chat-w:     420px;
+      --chat-h:     580px;
+      --hdr-h:      64px;
+    }
+
+    html, body {
+      height: 100%;
+      font-family: 'DM Sans', sans-serif;
+      background: var(--cream);
+      color: var(--text);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── Animated background ── */
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background:
+        radial-gradient(ellipse 80% 60% at 10% 20%, rgba(0,180,160,0.08) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 80% at 90% 80%, rgba(11,37,69,0.06) 0%, transparent 60%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ── Page content ── */
+    .page {
+      position: relative;
+      z-index: 1;
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 60px 24px 120px;
+    }
+
+    .page-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      background: rgba(0,180,160,0.10);
+      border: 1px solid rgba(0,180,160,0.25);
+      color: #009688;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 5px 12px;
+      border-radius: 20px;
+      margin-bottom: 24px;
+    }
+    .page-badge span {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--teal);
+      animation: pulse 2s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%,100% { opacity: 1; transform: scale(1); }
+      50%      { opacity: 0.5; transform: scale(0.8); }
+    }
+
+    .page h1 {
+      font-family: 'DM Serif Display', serif;
+      font-size: clamp(32px, 5vw, 52px);
+      color: var(--navy);
+      line-height: 1.1;
+      letter-spacing: -0.02em;
+      margin-bottom: 18px;
+    }
+    .page h1 em {
+      font-style: normal;
+      color: var(--teal);
+    }
+
+    .page > p {
+      font-size: 16px;
+      color: var(--muted);
+      line-height: 1.7;
+      max-width: 520px;
+      margin-bottom: 48px;
+    }
+
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+    }
+
+    .card {
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+      box-shadow: var(--shadow-sm);
+      transition: transform .2s, box-shadow .2s;
+    }
+    .card:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-md);
+    }
+    .card-icon {
+      width: 40px; height: 40px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, var(--navy) 0%, var(--navy-mid) 100%);
+      display: flex; align-items: center; justify-content: center;
+      margin-bottom: 14px;
+    }
+    .card-icon svg { width: 20px; height: 20px; fill: none; stroke: #fff; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+    .card h3 { font-size: 14px; font-weight: 600; color: var(--navy); margin-bottom: 6px; }
+    .card p  { font-size: 13px; color: var(--muted); line-height: 1.5; }
+
+    /* ── Floating chat button ── */
+    #open-chat {
+      position: fixed;
+      bottom: 28px; right: 28px;
+      width: 60px; height: 60px;
+      border-radius: 50%;
+      border: none;
+      cursor: pointer;
+      background: linear-gradient(135deg, var(--navy) 0%, var(--teal) 100%);
+      box-shadow: 0 8px 24px rgba(0,180,160,0.35), 0 2px 8px rgba(11,37,69,0.2);
+      display: flex; align-items: center; justify-content: center;
+      transition: transform .25s cubic-bezier(.34,1.56,.64,1), box-shadow .25s, opacity .2s;
+      z-index: 900;
+    }
+    #open-chat svg { width: 26px; height: 26px; stroke: #fff; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+    #open-chat:hover { transform: translateY(-3px) scale(1.05); box-shadow: 0 12px 32px rgba(0,180,160,0.4); }
+    #open-chat.hidden { opacity: 0; transform: scale(0.85); pointer-events: none; }
+
+    /* Notification dot */
+    #open-chat::after {
+      content: '';
+      position: absolute;
+      top: 6px; right: 6px;
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      background: #FF4757;
+      border: 2px solid var(--cream);
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    /* ── Chat popup ── */
+    #chatbot-popup {
+      position: fixed;
+      bottom: 28px; right: 28px;
+      width: var(--chat-w);
+      height: var(--chat-h);
+      border-radius: var(--radius);
+      background: var(--white);
+      box-shadow: var(--shadow-lg);
+      overflow: hidden;
+      display: none;
+      flex-direction: column;
+      opacity: 0;
+      transform: scale(0.94) translateY(10px);
+      transform-origin: bottom right;
+      transition: opacity .28s ease, transform .28s cubic-bezier(.34,1.2,.64,1);
+      z-index: 999;
+      border: 1px solid var(--border);
+    }
+    #chatbot-popup.visible {
+      display: flex;
+      opacity: 1;
+      transform: scale(1) translateY(0);
+    }
+
+    /* ── Header ── */
+    #chat-header {
+      flex-shrink: 0;
+      height: var(--hdr-h);
+      background: linear-gradient(135deg, var(--navy) 0%, var(--navy-mid) 100%);
+      padding: 0 16px 0 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Decorative teal stripe */
+    #chat-header::after {
+      content: '';
+      position: absolute;
+      top: 0; right: 0;
+      width: 120px; height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(0,180,160,0.15));
+      pointer-events: none;
+    }
+
+    .hdr-avatar {
+      width: 38px; height: 38px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, var(--teal) 0%, var(--teal-light) 100%);
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      font-family: 'DM Serif Display', serif;
+      font-size: 18px;
+      color: var(--white);
+      box-shadow: 0 2px 8px rgba(0,180,160,0.4);
+    }
+
+    .hdr-text { flex: 1; }
+    .hdr-text h2 {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--white);
+      letter-spacing: -0.2px;
+    }
+    .hdr-text p {
+      font-size: 11px;
+      color: rgba(255,255,255,0.55);
+      margin-top: 1px;
+    }
+
+    .hdr-status {
+      display: flex; align-items: center; gap: 5px;
+      font-size: 11px;
+      color: rgba(255,255,255,0.7);
+      margin-right: 8px;
+    }
+    .hdr-dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: #9CA3AF;
+      transition: background .4s;
+    }
+    .hdr-dot.live {
+      background: var(--teal-light);
+      box-shadow: 0 0 0 3px rgba(0,212,188,.25);
+    }
+
+    .hdr-btn {
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 8px;
+      width: 32px; height: 32px;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer;
+      color: rgba(255,255,255,0.8);
+      transition: background .15s, color .15s;
+      flex-shrink: 0;
+    }
+    .hdr-btn:hover { background: rgba(255,255,255,0.18); color: #fff; }
+    .hdr-btn svg { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+    /* ── Webchat area ── */
+    #webchat-area {
+      flex: 1;
+      position: relative;
+      min-height: 0;
+      background: #F8F9FB;
+    }
+
+    #webchat {
+      position: absolute; inset: 0;
+    }
+
+    /* ── Loading overlay ── */
+    #loading {
+      position: absolute; inset: 0;
+      background: #F8F9FB;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+      z-index: 10;
+      transition: opacity .35s;
+    }
+    #loading.gone { opacity: 0; pointer-events: none; }
+
+    .loader-ring {
+      width: 40px; height: 40px;
+      border-radius: 50%;
+      border: 3px solid rgba(0,180,160,0.15);
+      border-top-color: var(--teal);
+      animation: spin .75s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    #loading p { font-size: 13px; color: var(--muted); }
+
+    /* ── Error overlay ── */
+    #error-state {
+      position: absolute; inset: 0;
+      background: #F8F9FB;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 32px;
+      text-align: center;
+      z-index: 10;
+    }
+    #error-state.show { display: flex; }
+    .err-icon {
+      width: 48px; height: 48px;
+      border-radius: 50%;
+      background: rgba(239,68,68,0.08);
+      display: flex; align-items: center; justify-content: center;
+      margin-bottom: 4px;
+    }
+    .err-icon svg { width: 22px; height: 22px; stroke: #EF4444; fill: none; stroke-width: 2; stroke-linecap: round; }
+    #error-state h3 { font-size: 15px; font-weight: 600; color: var(--navy); }
+    #error-state p  { font-size: 13px; color: var(--muted); line-height: 1.5; max-width: 280px; }
+    .retry-btn {
+      margin-top: 8px;
+      padding: 9px 22px;
+      background: var(--navy);
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background .2s;
+    }
+    .retry-btn:hover { background: var(--navy-mid); }
+
+    /* ── Footer strip ── */
+    #chat-footer {
+      flex-shrink: 0;
+      padding: 7px 16px;
+      border-top: 1px solid var(--border);
+      background: var(--white);
+      text-align: center;
+      font-size: 10.5px;
+      color: var(--muted);
+    }
+    #chat-footer strong { color: var(--navy); font-weight: 500; }
+
+    /* ── Responsive ── */
+    @media (max-width: 480px) {
+      :root { --chat-w: 100vw; --chat-h: 100dvh; }
+      #chatbot-popup { bottom: 0; right: 0; border-radius: 0; }
+      #open-chat { bottom: 20px; right: 20px; }
+      .cards { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Page content ── -->
+<div class="page">
+  <div class="page-badge"><span></span> AI-Powered · RSSB</div>
+  <h1>Meet <em>Mugenzi</em>,<br>your policy guide.</h1>
+  <p>Ask anything about RSSB policies, guidelines, and procedures. Mugenzi understands your access level and responds accordingly.</p>
+
+  <div class="cards">
+    <div class="card">
+      <div class="card-icon">
+        <svg viewBox="0 0 24 24"><path d="M9 12h6M9 16h6M9 8h6M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/></svg>
+      </div>
+      <h3>Policy Lookup</h3>
+      <p>Instantly find the right policy document for any situation.</p>
+    </div>
+    <div class="card">
+      <div class="card-icon">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>
+      </div>
+      <h3>Always Available</h3>
+      <p>Get answers any time without waiting for a colleague to respond.</p>
+    </div>
+    <div class="card">
+      <div class="card-icon">
+        <svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      </div>
+      <h3>Access-Aware</h3>
+      <p>Responses respect your permissions — only what you can see.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ── Floating open button ── -->
+<button id="open-chat" onclick="openChat()" aria-label="Open Mugenzi assistant">
+  <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+</button>
+
+<!-- ── Chat popup ── -->
+<div id="chatbot-popup" role="complementary" aria-label="Mugenzi Assistant">
+
+  <div id="chat-header">
+    <div class="hdr-avatar">M</div>
+    <div class="hdr-text">
+      <h2>Mugenzi</h2>
+      <p>RSSB Policy Assistant</p>
+    </div>
+    <div class="hdr-status">
+      <span class="hdr-dot" id="hdr-dot"></span>
+      <span id="hdr-label">Starting…</span>
+    </div>
+    <button class="hdr-btn" onclick="restartConversation()" aria-label="Restart conversation" title="New conversation">
+      <svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+    </button>
+    <button class="hdr-btn" onclick="closeChat()" aria-label="Close chat" title="Close">
+      <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+
+  <div id="webchat-area">
+    <div id="loading"><div class="loader-ring"></div><p>Starting your session…</p></div>
+    <div id="error-state">
+      <div class="err-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div>
+      <h3>Connection failed</h3>
+      <p>Mugenzi couldn't start. Please check your connection and try again.</p>
+      <button class="retry-btn" onclick="initChat()">Try again</button>
+    </div>
+    <div id="webchat" role="main"></div>
+  </div>
+
+  <div id="chat-footer">
+    Still in development &nbsp;·&nbsp; Questions? Contact <strong>Shema Aimable</strong> · Enterprise Solutions
+  </div>
+
+</div>
+
+<script>
+  /* ================================================================
+   * ↓ ONLY THING YOU NEED TO CHANGE ↓
+   * Paste your token endpoint from Copilot Studio →
+   * Settings → Channels → Email → Token Endpoint
+   * ================================================================ */
+    const TOKEN_ENDPOINT = "https://5ad92009261fec1b91937e4acf325b.42.environment.api.powerplatform.com/powervirtualagents/botsbyschema/cr9ec_policyGuide1/directline/token?api-version=2022-03-01-preview";
+  /* ================================================================ */
+
+  const styleOptions = {
+    accent:                         '#0B2545',
+    backgroundColor:                '#F8F9FB',
+    botAvatarBackgroundColor:       '#0B2545',
+    botAvatarInitials:              'M',
+    userAvatarBackgroundColor:      '#00B4A0',
+
+    bubbleBackground:               '#FFFFFF',
+    bubbleBorderColor:              '#EEF0F3',
+    bubbleBorderRadius:             18,
+    bubbleBorderWidth:              1,
+    bubbleBorderStyle:              'solid',
+    bubbleTextColor:                '#1A1F2E',
+    bubbleNubOffset:                0,
+    bubbleNubSize:                  0,
+    bubbleMinHeight:                40,
+
+    bubbleFromUserBackground:       '#0B2545',
+    bubbleFromUserBorderColor:      '#0B2545',
+    bubbleFromUserBorderRadius:     18,
+    bubbleFromUserTextColor:        '#FFFFFF',
+    bubbleFromUserNubOffset:        0,
+    bubbleFromUserNubSize:          0,
+
+    sendBoxBackground:              '#FFFFFF',
+    sendBoxBorderTop:               '1px solid #EEF0F3',
+    sendBoxButtonColor:             '#0B2545',
+    sendBoxButtonColorOnHover:      '#00B4A0',
+    sendBoxHeight:                  56,
+    sendBoxPlaceholderColor:        '#9CA3AF',
+    sendBoxTextColor:               '#1A1F2E',
+
+    suggestedActionBackground:      '#0B2545',
+    suggestedActionBackgroundColor: '#0B2545',
+    suggestedActionTextColor:       '#FFFFFF',
+    suggestedActionBorderRadius:    12,
+    suggestedActionLayout:          'flow',
+
+    hideUploadButton:               true,
+    emojiSet:                       true,
+    messageActivityWordBreak:       'break-word',
+    paddingRegular:                 12,
+    paddingWide:                    16,
+  };
+
+  let directLineUrl  = null;
+  let chatOpen       = false;
+  let initialized    = false;
+
+  const dot      = document.getElementById('hdr-dot');
+  const label    = document.getElementById('hdr-label');
+  const loading  = document.getElementById('loading');
+  const errState = document.getElementById('error-state');
+  const popup    = document.getElementById('chatbot-popup');
+  const openBtn  = document.getElementById('open-chat');
+
+  function setStatus(state) {
+    if (state === 'live') {
+      dot.classList.add('live');
+      label.textContent = 'Online';
+    } else {
+      dot.classList.remove('live');
+      label.textContent = state === 'error' ? 'Offline' : 'Starting…';
+    }
+  }
+
+  function showError() {
+    loading.classList.add('gone');
+    errState.classList.add('show');
+    setStatus('error');
+  }
+
+  function openChat() {
+    popup.style.display = 'flex';
+    requestAnimationFrame(() => popup.classList.add('visible'));
+    openBtn.classList.add('hidden');
+    chatOpen = true;
+    if (!initialized) initChat();
+  }
+
+  function closeChat() {
+    popup.classList.remove('visible');
+    setTimeout(() => { if (!chatOpen) popup.style.display = 'none'; }, 300);
+    openBtn.classList.remove('hidden');
+    chatOpen = false;
+  }
+
+  function createStore() {
+    return window.WebChat.createStore({}, ({ dispatch }) => next => action => {
+      if (action.type === 'DIRECT_LINE/CONNECT_FULFILLED') {
+        // Fire startConversation event
+        dispatch({
+          type: 'DIRECT_LINE/POST_ACTIVITY',
+          meta: { method: 'keyboard' },
+          payload: {
+            activity: {
+              channelData: { postBack: true },
+              name: 'startConversation',
+              type: 'event',
+            },
+          },
+        });
+        // Mark online
+        loading.classList.add('gone');
+        setStatus('live');
+      }
+      if (action.type === 'DIRECT_LINE/DISCONNECT_FULFILLED') {
+        setStatus('error');
+      }
+      return next(action);
+    });
+  }
+
+  async function initChat() {
+    initialized = true;
+    loading.classList.remove('gone');
+    errState.classList.remove('show');
+    setStatus('connecting');
+
+    try {
+      // 1. Get regional Direct Line URL
+      const envBase    = TOKEN_ENDPOINT.slice(0, TOKEN_ENDPOINT.indexOf('/powervirtualagents'));
+      const apiVersion = TOKEN_ENDPOINT.split('api-version=')[1];
+      const regionalURL = `${envBase}/powervirtualagents/regionalchannelsettings?api-version=${apiVersion}`;
+
+      const regionalRes = await fetch(regionalURL);
+      if (!regionalRes.ok) throw new Error(`Regional settings fetch failed: ${regionalRes.status}`);
+      const regionalData = await regionalRes.json();
+      directLineUrl = regionalData.channelUrlsById?.directline;
+      if (!directLineUrl) throw new Error('No Direct Line URL in regional settings');
+
+      // 2. Get conversation token
+      const tokenRes = await fetch(TOKEN_ENDPOINT);
+      if (!tokenRes.ok) throw new Error(`Token fetch failed: ${tokenRes.status}`);
+      const { token } = await tokenRes.json();
+      if (!token) throw new Error('Token missing from response');
+
+      // 3. Render
+      renderChat(token);
+
+    } catch (err) {
+      console.error('[Mugenzi]', err);
+      showError();
+    }
+  }
+
+  function renderChat(token) {
+    const directLine = window.WebChat.createDirectLine({
+      domain: `${directLineUrl}v3/directline`,
+      token,
+    });
+
+    // Resolve SharePoint user identity if available
+    const ctx      = window._spPageContextInfo ?? {};
+    const userID   = ctx.userId != null ? `sp-${ctx.userId}` : `anon-${Date.now()}`;
+    const username = ctx.userDisplayName ?? 'RSSB User';
+
+    window.WebChat.renderWebChat(
+      {
+        directLine,
+        store: createStore(),
+        styleOptions,
+        userID,
+        username,
+        userAvatarInitials: username.substring(0, 2).toUpperCase(),
+        locale: 'en-US',
+      },
+      document.getElementById('webchat')
+    );
+  }
+
+  async function restartConversation() {
+    if (!directLineUrl) return;
+    loading.classList.remove('gone');
+    errState.classList.remove('show');
+    setStatus('connecting');
+    document.getElementById('webchat').innerHTML = '';
+
+    try {
+      const tokenRes = await fetch(TOKEN_ENDPOINT);
+      if (!tokenRes.ok) throw new Error(`Token fetch failed: ${tokenRes.status}`);
+      const { token } = await tokenRes.json();
+      if (!token) throw new Error('Token missing');
+      renderChat(token);
+    } catch (err) {
+      console.error('[Mugenzi] Restart failed:', err);
+      showError();
+    }
+  }
+</script>
+</body>
+</html>
