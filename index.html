@@ -434,19 +434,44 @@
   </div>
 
   <div id="chat-footer">
-    Still in development &nbsp;·&nbsp; Questions? Contact <strong>Shema Aimable</strong> · Enterprise Solutions
+    Still in development &nbsp;·&nbsp; Questions? Contact <strong>Brian Mutsinzi</strong> · Enterprise Solutions
   </div>
 
 </div>
 
 <script>
   /* ================================================================
-   * ↓ ONLY THING YOU NEED TO CHANGE ↓
-   * Paste your token endpoint from Copilot Studio →
-   * Settings → Channels → Email → Token Endpoint
+   * CONFIGURATION
    * ================================================================ */
-    const TOKEN_ENDPOINT = "https://5ad92009261fec1b91937e4acf325b.42.environment.api.powerplatform.com/powervirtualagents/botsbyschema/cr9ec_policyGuide1/directline/token?api-version=2022-03-01-preview";
+  const TOKEN_ENDPOINT = "https://5ad92009261fec1b91937e4acf325b.42.environment.api.powerplatform.com/powervirtualagents/botsbyschema/cr9ec_policyGuide1/directline/token?api-version=2022-03-01-preview";
+
+  // OAuth connection name from Copilot Studio → Security → Authentication
+  const CONNECTION_NAME = 'YOUR_CONNECTION_NAME';
+
+  // Your Entra app registration scope URI (from Expose an API)
+  // e.g. 'api://a023ebf6-44f9-4bd8-842f-2eaaafdb1e47/Sites.Read.All'
+  const AAD_SCOPE = 'api://a023ebf6-44f9-4bd8-842f-2eaaafdb1e47/Sites.Read.All';
   /* ================================================================ */
+
+  /**
+   * Attempts to acquire an AAD token silently via SharePoint's OAuth API.
+   * Only works when this page is served from SharePoint — fails silently elsewhere.
+   */
+  async function getAADToken() {
+    try {
+      const res = await fetch('/_api/SP.OAuth.Token/Acquire', {
+        method: 'POST',
+        headers: { 'Accept': 'application/json;odata=verbose' },
+        body: JSON.stringify({ resource: AAD_SCOPE })
+      });
+      if (!res.ok) return null;
+      const data = await res.json();
+      return data.d?.AccessToken ?? null;
+    } catch {
+      // Not in SharePoint context — silently return null
+      return null;
+    }
+  }
 
   const styleOptions = {
     accent:                         '#0B2545',
@@ -535,32 +560,6 @@
     chatOpen = false;
   }
 
-  function createStore() {
-    return window.WebChat.createStore({}, ({ dispatch }) => next => action => {
-      if (action.type === 'DIRECT_LINE/CONNECT_FULFILLED') {
-        // Fire startConversation event
-        dispatch({
-          type: 'DIRECT_LINE/POST_ACTIVITY',
-          meta: { method: 'keyboard' },
-          payload: {
-            activity: {
-              channelData: { postBack: true },
-              name: 'startConversation',
-              type: 'event',
-            },
-          },
-        });
-        // Mark online
-        loading.classList.add('gone');
-        setStatus('live');
-      }
-      if (action.type === 'DIRECT_LINE/DISCONNECT_FULFILLED') {
-        setStatus('error');
-      }
-      return next(action);
-    });
-  }
-
   async function initChat() {
     initialized = true;
     loading.classList.remove('gone');
@@ -579,14 +578,23 @@
       directLineUrl = regionalData.channelUrlsById?.directline;
       if (!directLineUrl) throw new Error('No Direct Line URL in regional settings');
 
-      // 2. Get conversation token
-      const tokenRes = await fetch(TOKEN_ENDPOINT);
+      // 2. Get conversation token + AAD token in parallel
+      const [tokenRes, aadToken] = await Promise.all([
+        fetch(TOKEN_ENDPOINT),
+        getAADToken()  // null on GitHub, real token on SharePoint
+      ]);
       if (!tokenRes.ok) throw new Error(`Token fetch failed: ${tokenRes.status}`);
       const { token } = await tokenRes.json();
       if (!token) throw new Error('Token missing from response');
 
+      if (aadToken) {
+        console.log('[Mugenzi] SSO token acquired — silent sign-in active');
+      } else {
+        console.log('[Mugenzi] No SSO token — user will see login prompt');
+      }
+
       // 3. Render
-      renderChat(token);
+      renderChat(token, aadToken);
 
     } catch (err) {
       console.error('[Mugenzi]', err);
@@ -594,7 +602,7 @@
     }
   }
 
-  function renderChat(token) {
+  function renderChat(token, aadToken = null) {
     const directLine = window.WebChat.createDirectLine({
       domain: `${directLineUrl}v3/directline`,
       token,
@@ -605,10 +613,48 @@
     const userID   = ctx.userId != null ? `sp-${ctx.userId}` : `anon-${Date.now()}`;
     const username = ctx.userDisplayName ?? 'RSSB User';
 
+    const store = window.WebChat.createStore({}, ({ dispatch }) => next => action => {
+      if (action.type === 'DIRECT_LINE/CONNECT_FULFILLED') {
+        dispatch({
+          type: 'DIRECT_LINE/POST_ACTIVITY',
+          meta: { method: 'keyboard' },
+          payload: {
+            activity: {
+              channelData: { postBack: true },
+              name: 'startConversation',
+              type: 'event',
+            },
+          },
+        });
+
+        // Fire SSO token exchange if we have an AAD token (SharePoint only)
+        if (aadToken) {
+          dispatch({
+            type: 'WEB_CHAT/SEND_EVENT',
+            payload: {
+              name: 'signin/tokenExchange',
+              value: {
+                id: CONNECTION_NAME,
+                connectionName: CONNECTION_NAME,
+                token: aadToken
+              }
+            }
+          });
+        }
+
+        loading.classList.add('gone');
+        setStatus('live');
+      }
+      if (action.type === 'DIRECT_LINE/DISCONNECT_FULFILLED') {
+        setStatus('error');
+      }
+      return next(action);
+    });
+
     window.WebChat.renderWebChat(
       {
         directLine,
-        store: createStore(),
+        store,
         styleOptions,
         userID,
         username,
@@ -627,11 +673,14 @@
     document.getElementById('webchat').innerHTML = '';
 
     try {
-      const tokenRes = await fetch(TOKEN_ENDPOINT);
+      const [tokenRes, aadToken] = await Promise.all([
+        fetch(TOKEN_ENDPOINT),
+        getAADToken()
+      ]);
       if (!tokenRes.ok) throw new Error(`Token fetch failed: ${tokenRes.status}`);
       const { token } = await tokenRes.json();
       if (!token) throw new Error('Token missing');
-      renderChat(token);
+      renderChat(token, aadToken);
     } catch (err) {
       console.error('[Mugenzi] Restart failed:', err);
       showError();
