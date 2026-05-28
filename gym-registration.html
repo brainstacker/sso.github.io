@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sports Center Registration</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #f0f4f8;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px 16px;
+    }
+
+    .card {
+      background: #ffffff;
+      border-radius: 16px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.10);
+      width: 100%;
+      max-width: 440px;
+      overflow: hidden;
+    }
+
+    .card-header {
+      background: linear-gradient(135deg, #1a6b3c, #28a05a);
+      color: white;
+      padding: 28px 28px 22px;
+    }
+
+    .card-header .label {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1.2px;
+      opacity: 0.8;
+      margin-bottom: 4px;
+    }
+
+    .card-header h1 {
+      font-size: 22px;
+      font-weight: 700;
+      line-height: 1.3;
+    }
+
+    .card-header .location {
+      font-size: 13px;
+      opacity: 0.85;
+      margin-top: 6px;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .card-body {
+      padding: 28px;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      color: #374151;
+      margin-bottom: 7px;
+    }
+
+    input, select {
+      width: 100%;
+      padding: 12px 14px;
+      border: 1.5px solid #d1d5db;
+      border-radius: 10px;
+      font-size: 15px;
+      color: #111827;
+      background: #f9fafb;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      -webkit-appearance: none;
+      appearance: none;
+    }
+
+    input:focus, select:focus {
+      outline: none;
+      border-color: #1a6b3c;
+      box-shadow: 0 0 0 3px rgba(26, 107, 60, 0.12);
+      background: #fff;
+    }
+
+    input[readonly] {
+      background: #f3f4f6;
+      color: #6b7280;
+      cursor: not-allowed;
+    }
+
+    .select-wrapper {
+      position: relative;
+    }
+
+    .select-wrapper::after {
+      content: "▾";
+      position: absolute;
+      right: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #6b7280;
+      pointer-events: none;
+      font-size: 14px;
+    }
+
+    .btn {
+      width: 100%;
+      padding: 14px;
+      background: linear-gradient(135deg, #1a6b3c, #28a05a);
+      color: white;
+      border: none;
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.2s, transform 0.1s;
+      margin-top: 4px;
+    }
+
+    .btn:hover { opacity: 0.93; }
+    .btn:active { transform: scale(0.98); }
+    .btn:disabled { opacity: 0.55; cursor: not-allowed; }
+
+    .success-screen {
+      display: none;
+      padding: 40px 28px;
+      text-align: center;
+    }
+
+    .success-icon {
+      width: 64px;
+      height: 64px;
+      background: #dcfce7;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 16px;
+      font-size: 30px;
+    }
+
+    .success-screen h2 {
+      font-size: 20px;
+      font-weight: 700;
+      color: #111827;
+      margin-bottom: 8px;
+    }
+
+    .success-screen p {
+      font-size: 14px;
+      color: #6b7280;
+      line-height: 1.6;
+    }
+
+    .error-banner {
+      display: none;
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      color: #b91c1c;
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 13px;
+      margin-bottom: 18px;
+    }
+
+    .not-found {
+      display: none;
+      padding: 40px 28px;
+      text-align: center;
+    }
+
+    .not-found h2 {
+      font-size: 18px;
+      font-weight: 700;
+      color: #374151;
+      margin-bottom: 8px;
+    }
+
+    .not-found p {
+      font-size: 14px;
+      color: #6b7280;
+    }
+
+    .footer-note {
+      font-size: 12px;
+      color: #9ca3af;
+      text-align: center;
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+
+<div class="card">
+
+  <!-- NOT FOUND STATE -->
+  <div class="not-found" id="notFound">
+    <div style="font-size:40px;margin-bottom:12px;">⚠️</div>
+    <h2>Invalid QR Code</h2>
+    <p>This link doesn't match any registered sports center. Please scan the correct QR code at your gym.</p>
+  </div>
+
+  <!-- MAIN FORM -->
+  <div id="mainForm">
+    <div class="card-header">
+      <div class="label">Sports Center Registration</div>
+      <h1 id="gymName">Loading...</h1>
+      <div class="location" id="gymLocation"></div>
+    </div>
+
+    <div class="card-body">
+      <div class="error-banner" id="errorBanner"></div>
+
+      <div class="form-group">
+        <label for="employeeName">Full Name</label>
+        <input type="text" id="employeeName" placeholder="Enter your full name" autocomplete="name" />
+      </div>
+
+      <div class="form-group">
+        <label for="employeeId">Employee ID</label>
+        <input type="text" id="employeeId" placeholder="Enter your employee ID" />
+      </div>
+
+      <div class="form-group">
+        <label for="activity">Activity</label>
+        <div class="select-wrapper">
+          <select id="activity">
+            <option value="">— Select an activity —</option>
+          </select>
+        </div>
+      </div>
+
+      <button class="btn" id="submitBtn" onclick="submitForm()">Submit Registration</button>
+
+      <p class="footer-note">Your submission is recorded with today's date and time.</p>
+    </div>
+  </div>
+
+  <!-- SUCCESS STATE -->
+  <div class="success-screen" id="successScreen">
+    <div class="success-icon">✓</div>
+    <h2>Registration Submitted!</h2>
+    <p id="successMessage">Your visit has been recorded successfully.</p>
+  </div>
+
+</div>
+
+<script>
+  // ─────────────────────────────────────────────
+  // CONFIGURATION — update this when gyms change
+  // ─────────────────────────────────────────────
+  const GYMS = {
+    "lowkey-hotel": {
+      name: "Lowkey Hotel Ltd",
+      location: "📍 Rusizi District",
+      activities: ["Gym Tonic", "Swimming"]
+    },
+    "nyarutarama-sports": {
+      name: "Nyarutarama Sports Trust Club",
+      location: "📍 Gasabo District (Nyarutarama)",
+      activities: ["Gym Fitness & Aerobics", "Swimming", "Tennis"]
+    },
+    "seven-sport": {
+      name: "Seven Sport Club and Spa Ltd",
+      location: "📍 Gasabo District (Kinamba-Gisozi)",
+      activities: ["Gym & Aerobics"]
+    },
+    "club-house-nyandungu": {
+      name: "Club House la Palisse",
+      location: "📍 Gasabo District (Nyandungu)",
+      activities: ["Gym & Aerobics", "Swimming", "Tennis"]
+    },
+    "club-house-bugesera": {
+      name: "Club House la Palisse",
+      location: "📍 Bugesera District (Golden Tulip)",
+      activities: ["Gym & Aerobics", "Swimming", "Tennis"]
+    },
+    "olympic-hotel": {
+      name: "Olympic Hotel",
+      location: "📍 Gasabo District (Kimironko)",
+      activities: ["Gym Tonic & Aerobics", "Swimming", "Tennis"]
+    },
+    "splendid-hotel": {
+      name: "Splendid Hotel",
+      location: "📍 Muhanga District",
+      activities: ["Gym & Aerobics", "Swimming"]
+    },
+    "cercle-sportif": {
+      name: "Cercle Sportif de Kigali",
+      location: "📍 Nyarugenge District (Rugunga)",
+      activities: ["Gym & Aerobics", "Swimming", "Tennis"]
+    },
+    "fitness-factory": {
+      name: "Fitness Factory Gym",
+      location: "📍 Nyarugenge District (Nyarugenge market)",
+      activities: ["Gym"]
+    }
+  };
+
+  // ─────────────────────────────────────────────
+  // POWER AUTOMATE WEBHOOK
+  // Replace this URL with your actual HTTP trigger URL from Power Automate
+  // ─────────────────────────────────────────────
+  const WEBHOOK_URL = "YOUR_POWER_AUTOMATE_HTTP_TRIGGER_URL_HERE";
+
+  // ─────────────────────────────────────────────
+  // INIT — read ?gym= param from URL
+  // ─────────────────────────────────────────────
+  const params = new URLSearchParams(window.location.search);
+  const gymKey = (params.get("gym") || "").toLowerCase().trim();
+  const gym = GYMS[gymKey];
+
+  if (!gym) {
+    document.getElementById("notFound").style.display = "block";
+    document.getElementById("mainForm").style.display = "none";
+  } else {
+    document.getElementById("gymName").textContent = gym.name;
+    document.getElementById("gymLocation").textContent = gym.location;
+
+    const select = document.getElementById("activity");
+    gym.activities.forEach(act => {
+      const opt = document.createElement("option");
+      opt.value = act;
+      opt.textContent = act;
+      select.appendChild(opt);
+    });
+  }
+
+  // ─────────────────────────────────────────────
+  // SUBMIT
+  // ─────────────────────────────────────────────
+  async function submitForm() {
+    const name     = document.getElementById("employeeName").value.trim();
+    const empId    = document.getElementById("employeeId").value.trim();
+    const activity = document.getElementById("activity").value;
+    const banner   = document.getElementById("errorBanner");
+
+    banner.style.display = "none";
+
+    if (!name) {
+      showError("Please enter your full name.");
+      return;
+    }
+    if (!empId) {
+      showError("Please enter your Employee ID.");
+      return;
+    }
+    if (!activity) {
+      showError("Please select an activity.");
+      return;
+    }
+
+    const btn = document.getElementById("submitBtn");
+    btn.disabled = true;
+    btn.textContent = "Submitting...";
+
+    const payload = {
+      employeeName: name,
+      employeeId:   empId,
+      activity:     activity,
+      gymName:      gym.name,
+      gymLocation:  gym.location.replace("📍 ", ""),
+      submittedAt:  new Date().toISOString()
+    };
+
+    try {
+      await fetch(WEBHOOK_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+
+      document.getElementById("mainForm").style.display = "none";
+      document.getElementById("successScreen").style.display = "block";
+      document.getElementById("successMessage").textContent =
+        `${name}, your visit to ${gym.name} has been recorded. Thank you!`;
+
+    } catch (err) {
+      showError("Could not submit. Please check your connection and try again.");
+      btn.disabled = false;
+      btn.textContent = "Submit Registration";
+    }
+  }
+
+  function showError(msg) {
+    const banner = document.getElementById("errorBanner");
+    banner.textContent = msg;
+    banner.style.display = "block";
+  }
+</script>
+
+</body>
+</html>
