@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Sports Center Registration</title>
+  <script src="https://alcdn.msauth.net/browser/2.38.1/js/msal-browser.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -221,6 +222,20 @@
     <div class="card-body">
       <div class="error-banner" id="errorBanner"></div>
 
+      <!-- AUTH GATE -->
+      <div id="authSection" style="text-align:center;padding:12px 0 24px;">
+        <p style="font-size:14px;color:#374151;margin-bottom:16px;">Sign in with your company account to continue.</p>
+        <button class="btn" onclick="signIn()" style="max-width:260px;margin:0 auto;display:block;">
+          Sign in with Microsoft
+        </button>
+        <div id="authError" style="display:none;margin-top:14px;font-size:13px;color:#b91c1c;">
+          Sign-in failed. Make sure you're using your company account.
+        </div>
+      </div>
+
+      <!-- FORM FIELDS (hidden until signed in) -->
+      <div id="formFields" style="display:none;">
+
       <div class="form-group">
         <label for="employeeName">Full Name</label>
         <input type="text" id="employeeName" placeholder="Enter your full name" autocomplete="name" />
@@ -249,6 +264,8 @@
       <button class="btn" id="submitBtn" onclick="submitForm()">Submit Registration</button>
 
       <p class="footer-note">Your submission is recorded with today's date and time.</p>
+
+      </div><!-- end formFields -->
     </div>
   </div>
 
@@ -314,15 +331,68 @@
   };
 
   // ─────────────────────────────────────────────
+  // AZURE AD — paste your values here
+  // ─────────────────────────────────────────────
+  const AZURE_CLIENT_ID = "75c8821c-cff2-458a-b00b-150b163d9600";
+  const AZURE_TENANT_ID = "d4034026-d802-4056-b343-5d4d4731884b";
+
+  // ─────────────────────────────────────────────
   // COMPANY EMAIL DOMAIN — update if it changes
   // ─────────────────────────────────────────────
-  const ALLOWED_DOMAIN = "@rssb.rw"; // ← replace with your actual domain e.g. "@yourcompany.rw"
+  const ALLOWED_DOMAIN = "@rssb.rw"; // ← already updated by you
 
   // ─────────────────────────────────────────────
   // POWER AUTOMATE WEBHOOK
   // Replace this URL with your actual HTTP trigger URL from Power Automate
   // ─────────────────────────────────────────────
   const WEBHOOK_URL = "https://54a88113a2f7e245a7019589101429.11.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/c75b5b3e1d994b3f8bd1e3cdf9e72c09/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=ktj24aTZeqsLf4yxiMqr32ji1cemAZri7KImzpIy1eU";
+
+  // ─────────────────────────────────────────────
+  // MSAL SETUP
+  // ─────────────────────────────────────────────
+  const msalConfig = {
+    auth: {
+      clientId: AZURE_CLIENT_ID,
+      authority: `https://login.microsoftonline.com/${AZURE_TENANT_ID}`,
+      redirectUri: window.location.href.split("?")[0]
+    }
+  };
+
+  const msalInstance = new msal.PublicClientApplication(msalConfig);
+
+  async function signIn() {
+    try {
+      const result = await msalInstance.loginPopup({
+        scopes: ["User.Read"],
+        prompt: "select_account"
+      });
+      const account = result.account;
+      // Auto-fill name and email from Microsoft profile
+      document.getElementById("employeeName").value = account.name || "";
+      document.getElementById("employeeEmail").value = account.username || "";
+      document.getElementById("employeeName").setAttribute("readonly", true);
+      document.getElementById("employeeEmail").setAttribute("readonly", true);
+      document.getElementById("authSection").style.display = "none";
+      document.getElementById("formFields").style.display = "block";
+    } catch (e) {
+      document.getElementById("authError").style.display = "block";
+    }
+  }
+
+  // Check if already signed in
+  async function checkAuth() {
+    await msalInstance.initialize();
+    const accounts = msalInstance.getAllAccounts();
+    if (accounts.length > 0) {
+      const account = accounts[0];
+      document.getElementById("employeeName").value = account.name || "";
+      document.getElementById("employeeEmail").value = account.username || "";
+      document.getElementById("employeeName").setAttribute("readonly", true);
+      document.getElementById("employeeEmail").setAttribute("readonly", true);
+      document.getElementById("authSection").style.display = "none";
+      document.getElementById("formFields").style.display = "block";
+    }
+  }
 
   // ─────────────────────────────────────────────
   // INIT — read ?gym= param from URL
@@ -345,6 +415,8 @@
       opt.textContent = act;
       select.appendChild(opt);
     });
+
+    checkAuth();
   }
 
   // ─────────────────────────────────────────────
