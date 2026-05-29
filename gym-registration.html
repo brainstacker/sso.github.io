@@ -27,7 +27,7 @@
     }
 
     .card-header {
-      background: linear-gradient(135deg, #1a6b3c, #28a05a);
+      background: linear-gradient(135deg, #293182, #3a45a8);
       color: white;
       padding: 28px 28px 22px;
     }
@@ -87,8 +87,8 @@
 
     input:focus, select:focus {
       outline: none;
-      border-color: #1a6b3c;
-      box-shadow: 0 0 0 3px rgba(26, 107, 60, 0.12);
+      border-color: #293182;
+      box-shadow: 0 0 0 3px rgba(41, 49, 130, 0.12);
       background: #fff;
     }
 
@@ -116,7 +116,7 @@
     .btn {
       width: 100%;
       padding: 14px;
-      background: linear-gradient(135deg, #1a6b3c, #28a05a);
+      background: linear-gradient(135deg, #293182, #3a45a8);
       color: white;
       border: none;
       border-radius: 10px;
@@ -140,7 +140,7 @@
     .success-icon {
       width: 64px;
       height: 64px;
-      background: #dcfce7;
+      background: #e8eaf6;
       border-radius: 50%;
       display: flex;
       align-items: center;
@@ -232,6 +232,12 @@
       </div>
 
       <div class="form-group">
+        <label for="employeeEmail">Work Email</label>
+        <input type="email" id="employeeEmail" placeholder="yourname@company.com" autocomplete="email" />
+        <div style="font-size:12px;color:#6b7280;margin-top:5px;">Must be your company email address</div>
+      </div>
+
+      <div class="form-group">
         <label for="activity">Activity</label>
         <div class="select-wrapper">
           <select id="activity">
@@ -308,6 +314,11 @@
   };
 
   // ─────────────────────────────────────────────
+  // COMPANY EMAIL DOMAIN — update if it changes
+  // ─────────────────────────────────────────────
+  const ALLOWED_DOMAIN = "@company.com"; // ← replace with your actual domain e.g. "@yourcompany.rw"
+
+  // ─────────────────────────────────────────────
   // POWER AUTOMATE WEBHOOK
   // Replace this URL with your actual HTTP trigger URL from Power Automate
   // ─────────────────────────────────────────────
@@ -342,6 +353,7 @@
   async function submitForm() {
     const name     = document.getElementById("employeeName").value.trim();
     const empId    = document.getElementById("employeeId").value.trim();
+    const email    = document.getElementById("employeeEmail").value.trim().toLowerCase();
     const activity = document.getElementById("activity").value;
     const banner   = document.getElementById("errorBanner");
 
@@ -355,6 +367,14 @@
       showError("Please enter your Employee ID.");
       return;
     }
+    if (!email) {
+      showError("Please enter your work email address.");
+      return;
+    }
+    if (!email.endsWith(ALLOWED_DOMAIN)) {
+      showError(`Please use your company email address (ending in ${ALLOWED_DOMAIN}).`);
+      return;
+    }
     if (!activity) {
       showError("Please select an activity.");
       return;
@@ -365,12 +385,13 @@
     btn.textContent = "Submitting...";
 
     const payload = {
-      employeeName: name,
-      employeeId:   empId,
-      activity:     activity,
-      gymName:      gym.name,
-      gymLocation:  gym.location.replace("📍 ", ""),
-      submittedAt:  new Date().toISOString()
+      employeeName:  name,
+      employeeId:    empId,
+      employeeEmail: email,
+      activity:      activity,
+      gymName:       gym.name,
+      gymLocation:   gym.location.replace("📍 ", ""),
+      submittedAt:   new Date().toISOString()
     };
 
     try {
