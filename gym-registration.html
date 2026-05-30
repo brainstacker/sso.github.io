@@ -333,19 +333,18 @@
   // ─────────────────────────────────────────────
   // AZURE AD — paste your values here
   // ─────────────────────────────────────────────
-  const AZURE_CLIENT_ID = "75c8821c-cff2-458a-b00b-150b163d9600";
-  const AZURE_TENANT_ID = "d4034026-d802-4056-b343-5d4d4731884b";
+    const AZURE_CLIENT_ID = "75c8821c-cff2-458a-b00b-150b163d9600";
+    const AZURE_TENANT_ID = "d4034026-d802-4056-b343-5d4d4731884b";
 
   // ─────────────────────────────────────────────
   // COMPANY EMAIL DOMAIN — update if it changes
   // ─────────────────────────────────────────────
-  const ALLOWED_DOMAIN = "@rssb.rw"; // ← already updated by you
+  const ALLOWED_DOMAIN = "@rssb.rw"; 
 
   // ─────────────────────────────────────────────
   // POWER AUTOMATE WEBHOOK
-  // Replace this URL with your actual HTTP trigger URL from Power Automate
   // ─────────────────────────────────────────────
-  const WEBHOOK_URL = "https://54a88113a2f7e245a7019589101429.11.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/c75b5b3e1d994b3f8bd1e3cdf9e72c09/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=ktj24aTZeqsLf4yxiMqr32ji1cemAZri7KImzpIy1eU";
+    const WEBHOOK_URL = "https://54a88113a2f7e245a7019589101429.11.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/c75b5b3e1d994b3f8bd1e3cdf9e72c09/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=ktj24aTZeqsLf4yxiMqr32ji1cemAZri7KImzpIy1eU";
 
   // ─────────────────────────────────────────────
   // MSAL SETUP
@@ -359,6 +358,17 @@
   };
 
   const msalInstance = new msal.PublicClientApplication(msalConfig);
+  let currentGym = null;
+  let currentGymKey = null;
+
+  function fillUserDetails(account) {
+    document.getElementById("employeeName").value = account.name || "";
+    document.getElementById("employeeEmail").value = account.username || "";
+    document.getElementById("employeeName").setAttribute("readonly", true);
+    document.getElementById("employeeEmail").setAttribute("readonly", true);
+    document.getElementById("authSection").style.display = "none";
+    document.getElementById("formFields").style.display = "block";
+  }
 
   async function signIn() {
     try {
@@ -366,58 +376,45 @@
         scopes: ["User.Read"],
         prompt: "select_account"
       });
-      const account = result.account;
-      // Auto-fill name and email from Microsoft profile
-      document.getElementById("employeeName").value = account.name || "";
-      document.getElementById("employeeEmail").value = account.username || "";
-      document.getElementById("employeeName").setAttribute("readonly", true);
-      document.getElementById("employeeEmail").setAttribute("readonly", true);
-      document.getElementById("authSection").style.display = "none";
-      document.getElementById("formFields").style.display = "block";
+      fillUserDetails(result.account);
     } catch (e) {
       document.getElementById("authError").style.display = "block";
     }
   }
 
-  // Check if already signed in
-  async function checkAuth() {
+  // ─────────────────────────────────────────────
+  // INIT — runs everything in the right order
+  // ─────────────────────────────────────────────
+  (async () => {
+    // 1. Initialize MSAL first
     await msalInstance.initialize();
-    const accounts = msalInstance.getAllAccounts();
-    if (accounts.length > 0) {
-      const account = accounts[0];
-      document.getElementById("employeeName").value = account.name || "";
-      document.getElementById("employeeEmail").value = account.username || "";
-      document.getElementById("employeeName").setAttribute("readonly", true);
-      document.getElementById("employeeEmail").setAttribute("readonly", true);
-      document.getElementById("authSection").style.display = "none";
-      document.getElementById("formFields").style.display = "block";
+
+    // 2. Read gym from URL
+    const params = new URLSearchParams(window.location.search);
+    currentGymKey = (params.get("gym") || "").toLowerCase().trim();
+    currentGym = GYMS[currentGymKey];
+
+    if (!currentGym) {
+      document.getElementById("notFound").style.display = "block";
+      document.getElementById("mainForm").style.display = "none";
+      return;
     }
-  }
 
-  // ─────────────────────────────────────────────
-  // INIT — read ?gym= param from URL
-  // ─────────────────────────────────────────────
-  const params = new URLSearchParams(window.location.search);
-  const gymKey = (params.get("gym") || "").toLowerCase().trim();
-  const gym = GYMS[gymKey];
+    // 3. Set gym name and location
+    document.getElementById("gymName").textContent = currentGym.name;
+    document.getElementById("gymLocation").textContent = currentGym.location;
 
-  if (!gym) {
-    document.getElementById("notFound").style.display = "block";
-    document.getElementById("mainForm").style.display = "none";
-  } else {
-    document.getElementById("gymName").textContent = gym.name;
-    document.getElementById("gymLocation").textContent = gym.location;
-
+    // 4. Populate activities
     const select = document.getElementById("activity");
-    gym.activities.forEach(act => {
+    currentGym.activities.forEach(act => {
       const opt = document.createElement("option");
       opt.value = act;
       opt.textContent = act;
       select.appendChild(opt);
     });
 
-    // Check if already submitted this session
-    if (sessionStorage.getItem("submitted_" + gymKey)) {
+    // 5. Check if already submitted this session
+    if (sessionStorage.getItem("submitted_" + currentGymKey)) {
       document.getElementById("mainForm").style.display = "none";
       document.getElementById("successScreen").style.display = "block";
       document.getElementById("successMessage").textContent =
@@ -425,8 +422,12 @@
       return;
     }
 
-    checkAuth();
-  }
+    // 6. Check if already signed in with Microsoft
+    const accounts = msalInstance.getAllAccounts();
+    if (accounts.length > 0) {
+      fillUserDetails(accounts[0]);
+    }
+  })();
 
   // ─────────────────────────────────────────────
   // SUBMIT
@@ -478,8 +479,8 @@
       employeeId:    empId,
       employeeEmail: email,
       activity:      activity,
-      gymName:       gym.name,
-      gymLocation:   gym.location.replace("📍 ", ""),
+      gymName:       currentGym.name,
+      gymLocation:   currentGym.location.replace("📍 ", ""),
       submittedAt:   new Date().toISOString()
     };
 
@@ -490,11 +491,11 @@
         body: JSON.stringify(payload)
       });
 
-      sessionStorage.setItem("submitted_" + gymKey, "true");
+      sessionStorage.setItem("submitted_" + currentGymKey, "true");
       document.getElementById("mainForm").style.display = "none";
       document.getElementById("successScreen").style.display = "block";
       document.getElementById("successMessage").textContent =
-        `${name}, your visit to ${gym.name} has been recorded. Thank you!`;
+        `${name}, your visit to ${currentGym.name} has been recorded. Thank you!`;
 
     } catch (err) {
       showError("Could not submit. Please check your connection and try again.");
