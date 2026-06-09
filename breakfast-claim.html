@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Breakfast Claim — RSSB</title>
+  <script src="https://alcdn.msauth.net/browser/2.38.1/js/msal-browser.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #f0f4f8;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px 16px;
+    }
+
+    .card {
+      background: #ffffff;
+      border-radius: 16px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.10);
+      width: 100%;
+      max-width: 480px;
+      overflow: hidden;
+    }
+
+    /* ── HEADER ── */
+    .card-header {
+      background: linear-gradient(135deg, #293182, #3a45a8);
+      color: white;
+      padding: 24px 24px 20px;
+    }
+    .card-header .label {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1.2px;
+      opacity: 0.75;
+      margin-bottom: 4px;
+    }
+    .card-header h1 {
+      font-size: 21px;
+      font-weight: 700;
+    }
+
+    /* ── USER CARD ── */
+    .user-card {
+      margin: 20px 20px 0;
+      padding: 16px;
+      border: 1.5px solid #e5e7eb;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .user-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+    }
+    .avatar {
+      width: 48px;
+      height: 48px;
+      background: #293182;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 17px;
+      font-weight: 700;
+      color: white;
+      flex-shrink: 0;
+      letter-spacing: 0.5px;
+    }
+    .user-name {
+      font-size: 15px;
+      font-weight: 700;
+      color: #111827;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .user-email {
+      font-size: 12px;
+      color: #6b7280;
+      margin-top: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .user-right {
+      text-align: right;
+      flex-shrink: 0;
+    }
+    .user-date {
+      font-size: 12px;
+      color: #374151;
+      font-weight: 500;
+    }
+    .user-cutoff {
+      font-size: 12px;
+      color: #6b7280;
+      margin-top: 4px;
+    }
+
+    /* ── CARD BODY ── */
+    .card-body {
+      padding: 20px 20px 24px;
+    }
+
+    /* ── AUTH STATE ── */
+    .auth-section {
+      text-align: center;
+      padding: 28px 8px 12px;
+    }
+    .auth-section .auth-title {
+      font-size: 17px;
+      font-weight: 700;
+      color: #111827;
+      margin-bottom: 6px;
+    }
+    .auth-section .auth-sub {
+      font-size: 14px;
+      color: #6b7280;
+      line-height: 1.55;
+      margin-bottom: 24px;
+    }
+    .btn-signin {
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
+      padding: 13px 28px;
+      background: linear-gradient(135deg, #293182, #3a45a8);
+      color: white;
+      border: none;
+      border-radius: 10px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+    .btn-signin:hover { opacity: 0.9; }
+    .auth-error {
+      display: none;
+      margin-top: 14px;
+      font-size: 13px;
+      color: #b91c1c;
+    }
+
+    /* ── CLAIM STATE ── */
+    .claim-section {
+      text-align: center;
+      padding: 20px 0 4px;
+    }
+    .claim-icon {
+      font-size: 44px;
+      margin-bottom: 14px;
+      display: block;
+    }
+    .claim-title {
+      font-size: 19px;
+      font-weight: 700;
+      color: #111827;
+      margin-bottom: 6px;
+    }
+    .claim-sub {
+      font-size: 14px;
+      color: #6b7280;
+      line-height: 1.55;
+      margin-bottom: 26px;
+    }
+    .btn-claim {
+      width: 100%;
+      padding: 15px;
+      background: linear-gradient(135deg, #293182, #3a45a8);
+      color: white;
+      border: none;
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.2s, transform 0.1s;
+    }
+    .btn-claim:hover { opacity: 0.93; }
+    .btn-claim:active { transform: scale(0.98); }
+    .btn-claim:disabled { opacity: 0.55; cursor: not-allowed; }
+
+    /* ── ALREADY CLAIMED STATE ── */
+    .claimed-section {
+      background: #f0fdf4;
+      border: 1.5px solid #bbf7d0;
+      border-radius: 12px;
+      padding: 36px 24px;
+      text-align: center;
+    }
+    .claimed-check {
+      width: 66px;
+      height: 66px;
+      border: 3px solid #16a34a;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 16px;
+      color: #16a34a;
+      font-size: 30px;
+    }
+    .claimed-title {
+      font-size: 20px;
+      font-weight: 700;
+      color: #16a34a;
+      margin-bottom: 8px;
+    }
+    .claimed-sub {
+      font-size: 14px;
+      color: #4b7a5e;
+      line-height: 1.5;
+    }
+
+    /* ── CUTOFF PASSED STATE ── */
+    .cutoff-section {
+      background: #fef3c7;
+      border: 1.5px solid #fcd34d;
+      border-radius: 12px;
+      padding: 32px 24px;
+      text-align: center;
+    }
+    .cutoff-icon { font-size: 40px; margin-bottom: 14px; display: block; }
+    .cutoff-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: #92400e;
+      margin-bottom: 6px;
+    }
+    .cutoff-sub {
+      font-size: 14px;
+      color: #78350f;
+      line-height: 1.55;
+    }
+
+    /* ── DIVIDER ── */
+    .divider {
+      height: 1px;
+      background: #f3f4f6;
+      margin: 0 20px;
+    }
+
+    /* ── FOOTER ── */
+    .card-footer {
+      padding: 14px 20px;
+      background: #f9fafb;
+      border-top: 1px solid #f3f4f6;
+      text-align: center;
+    }
+    .card-footer p {
+      font-size: 11.5px;
+      color: #9ca3af;
+    }
+
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+
+<div class="card">
+
+  <!-- HEADER -->
+  <div class="card-header">
+    <div class="label">RSSB Staff Portal</div>
+    <h1>&#9749; Breakfast Claim</h1>
+  </div>
+
+  <!-- USER INFO CARD (shown after login) -->
+  <div class="user-card hidden" id="userCard">
+    <div class="user-left">
+      <div class="avatar" id="userAvatar">?</div>
+      <div style="min-width:0;">
+        <div class="user-name" id="userName">—</div>
+        <div class="user-email" id="userEmail">—</div>
+      </div>
+    </div>
+    <div class="user-right">
+      <div class="user-date" id="userDate">—</div>
+      <div class="user-cutoff">&#9200; Cutoff: 9:00 AM</div>
+    </div>
+  </div>
+
+  <div class="card-body">
+
+    <!-- AUTH STATE -->
+    <div id="authSection" class="auth-section">
+      <div class="auth-title">Good morning!</div>
+      <div class="auth-sub">Sign in with your company account to confirm your breakfast for today.</div>
+      <button class="btn-signin" onclick="signIn()">
+        <!-- Microsoft icon -->
+        <svg width="18" height="18" viewBox="0 0 21 21" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="0" y="0" width="10" height="10" fill="#F25022"/>
+          <rect x="11" y="0" width="10" height="10" fill="#7FBA00"/>
+          <rect x="0" y="11" width="10" height="10" fill="#00A4EF"/>
+          <rect x="11" y="11" width="10" height="10" fill="#FFB900"/>
+        </svg>
+        Sign in with Microsoft
+      </button>
+      <div class="auth-error" id="authError">&#10060; Sign-in failed. Please use your RSSB company account.</div>
+    </div>
+
+    <!-- CLAIM STATE -->
+    <div id="claimSection" class="claim-section hidden">
+      <span class="claim-icon">&#9749;</span>
+      <div class="claim-title">Ready to claim?</div>
+      <div class="claim-sub">Confirm your breakfast for today.<br/>Claims close at <strong>9:00 AM</strong>.</div>
+      <button class="btn-claim" id="claimBtn" onclick="doClaim()">&#10003;&nbsp; Claim Breakfast</button>
+    </div>
+
+    <!-- ALREADY CLAIMED STATE -->
+    <div id="claimedSection" class="claimed-section hidden">
+      <div class="claimed-check">&#10003;</div>
+      <div class="claimed-title">Already Claimed Today</div>
+      <div class="claimed-sub">You have already confirmed your breakfast for today.</div>
+    </div>
+
+    <!-- CUTOFF PASSED STATE -->
+    <div id="cutoffSection" class="cutoff-section hidden">
+      <span class="cutoff-icon">&#9200;</span>
+      <div class="cutoff-title">Claim Window Closed</div>
+      <div class="cutoff-sub">The breakfast claim cutoff (9:00 AM) has passed for today.<br/>See you tomorrow!</div>
+    </div>
+
+  </div>
+
+  <!-- FOOTER -->
+  <div class="card-footer">
+    <p>RSSB Breakfast Management System &mdash; Automated</p>
+  </div>
+
+</div>
+
+<script>
+  // ─────────────────────────────────────────────────────────────
+  // CONFIGURATION — update these values for your environment
+  // ─────────────────────────────────────────────────────────────
+  const AZURE_CLIENT_ID = "75c8821c-cff2-458a-b00b-150b163d9600";
+  const AZURE_TENANT_ID = "d4034026-d802-4056-b343-5d4d4731884b";
+  const ALLOWED_DOMAIN  = "@rssb.rw";
+  const CUTOFF_HOUR     = 9; // 9 = 9:00 AM
+
+  // TODO: Replace with your deployed Power Apps kiosk URL
+  // Power Apps will receive ?name=...&email=...&date=... as URL params
+  // Read them inside Power Apps with: Param("name"), Param("email"), Param("date")
+  const POWER_APPS_URL  = "https://apps.powerapps.com/play/e/54a88113-a2f7-e245-a701-958910142911/app/dbdfe3e0-33c6-4b67-bb57-a49bb2e50e84?tenantId=d4034026-d802-4056-b343-5d4d4731884b&sourcehint=3&hint=1066d008-6187-4b12-8369-8879c989eaae&sourcetime=1781018552442&mode=kiosk";
+  // ─────────────────────────────────────────────────────────────
+
+  const msalConfig = {
+    auth: {
+      clientId: AZURE_CLIENT_ID,
+      authority: `https://login.microsoftonline.com/${AZURE_TENANT_ID}`,
+      redirectUri: window.location.href.split("?")[0]
+    }
+  };
+
+  const msalInstance = new msal.PublicClientApplication(msalConfig);
+  let currentUser = null;
+
+  // localStorage key — includes today's date so it auto-resets tomorrow
+  function todayKey() {
+    return "breakfast_claimed_" + new Date().toISOString().slice(0, 10);
+  }
+
+  function isAfterCutoff() {
+    const now = new Date();
+    return now.getHours() >= CUTOFF_HOUR;
+  }
+
+  function formatDate(d) {
+    return d.toLocaleDateString("en-US", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric"
+    });
+  }
+
+  function getInitials(name) {
+    if (!name) return "?";
+    return name
+      .split(" ")
+      .filter(Boolean)
+      .map(w => w[0])
+      .slice(0, 2)
+      .join("")
+      .toUpperCase();
+  }
+
+  function showUserCard(account) {
+    currentUser = account;
+
+    // Populate user card
+    document.getElementById("userCard").classList.remove("hidden");
+    document.getElementById("userAvatar").textContent = getInitials(account.name || account.username);
+    document.getElementById("userName").textContent   = account.name || account.username;
+    document.getElementById("userEmail").textContent  = account.username;
+    document.getElementById("userDate").textContent   = formatDate(new Date());
+
+    // Hide auth section
+    document.getElementById("authSection").classList.add("hidden");
+
+    // Decide which state to show
+    if (localStorage.getItem(todayKey())) {
+      showState("claimed");
+    } else if (isAfterCutoff()) {
+      showState("cutoff");
+    } else {
+      showState("claim");
+    }
+  }
+
+  function showState(state) {
+    ["claimSection", "claimedSection", "cutoffSection"].forEach(id =>
+      document.getElementById(id).classList.add("hidden")
+    );
+    if (state === "claim")   document.getElementById("claimSection").classList.remove("hidden");
+    if (state === "claimed") document.getElementById("claimedSection").classList.remove("hidden");
+    if (state === "cutoff")  document.getElementById("cutoffSection").classList.remove("hidden");
+  }
+
+  async function signIn() {
+    try {
+      const result = await msalInstance.loginPopup({
+        scopes: ["User.Read"],
+        prompt: "select_account"
+      });
+      showUserCard(result.account);
+    } catch (e) {
+      document.getElementById("authError").style.display = "block";
+    }
+  }
+
+  function doClaim() {
+    if (!currentUser) return;
+
+    const btn = document.getElementById("claimBtn");
+    btn.disabled = true;
+    btn.textContent = "Redirecting to app…";
+
+    // Mark as claimed for today (date-keyed — auto-expires tomorrow)
+    localStorage.setItem(todayKey(), "true");
+
+    // Build destination URL with user info as params
+    // Power Apps reads these with: Param("name"), Param("email"), Param("date")
+    const params = new URLSearchParams({
+      name:  currentUser.name  || "",
+      email: currentUser.username || "",
+      date:  new Date().toISOString().slice(0, 10)
+    });
+
+    const separator = POWER_APPS_URL.includes("?") ? "&" : "?";
+    const destination = POWER_APPS_URL + separator + params.toString();
+
+    setTimeout(() => {
+      window.location.href = destination;
+    }, 500);
+  }
+
+  // ─── INIT ─────────────────────────────────────────────────
+  (async () => {
+    await msalInstance.initialize();
+
+    // If user is already signed in from a previous session, skip the login screen
+    const accounts = msalInstance.getAllAccounts();
+    if (accounts.length > 0) {
+      showUserCard(accounts[0]);
+    }
+  })();
+</script>
+
+</body>
+</html>
