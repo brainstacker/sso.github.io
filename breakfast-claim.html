@@ -286,7 +286,7 @@
     </div>
     <div class="user-right">
       <div class="user-date" id="userDate">—</div>
-      <div class="user-cutoff">&#9200; Cutoff: 9:00 AM</div>
+      <div class="user-cutoff">&#9200; Cutoff: 8:00 PM</div>
     </div>
   </div>
 
@@ -313,7 +313,7 @@
     <div id="claimSection" class="claim-section hidden">
       <span class="claim-icon">&#9749;</span>
       <div class="claim-title">Ready to claim?</div>
-      <div class="claim-sub">Confirm your breakfast for today.<br/>Claims close at <strong>9:00 AM</strong>.</div>
+      <div class="claim-sub">Confirm your breakfast for today.<br/>Claims close at <strong>8:00 PM</strong>.</div>
       <button class="btn-claim" id="claimBtn" onclick="doClaim()">&#10003;&nbsp; Claim Breakfast</button>
     </div>
 
@@ -328,7 +328,7 @@
     <div id="cutoffSection" class="cutoff-section hidden">
       <span class="cutoff-icon">&#9200;</span>
       <div class="cutoff-title">Claim Window Closed</div>
-      <div class="cutoff-sub">The breakfast claim cutoff (9:00 AM) has passed for today.<br/>See you tomorrow!</div>
+      <div class="cutoff-sub">The breakfast claim cutoff (8:00 PM) has passed for today.<br/>See you tomorrow!</div>
     </div>
 
   </div>
@@ -347,7 +347,7 @@
   const AZURE_CLIENT_ID = "75c8821c-cff2-458a-b00b-150b163d9600";
   const AZURE_TENANT_ID = "d4034026-d802-4056-b343-5d4d4731884b";
   const ALLOWED_DOMAIN  = "@rssb.rw";
-  const CUTOFF_HOUR     = 9; // 9 = 19:00 PM
+  const CUTOFF_HOUR     = 20; // 20 = 8:00 PM
 
   // TODO: Replace with your deployed Power Apps kiosk URL
   // Power Apps will receive ?name=...&email=...&date=... as URL params
